@@ -130,7 +130,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 	    if(dup2(fd,1)<0){abort();}
 	    close(fd);
 	    fflush(stdout);
-            if(execvp(command[0],command) == -1){
+            if(execv(command[0],command) == -1){
 		    close(fd);
                     return false;
 	    }
