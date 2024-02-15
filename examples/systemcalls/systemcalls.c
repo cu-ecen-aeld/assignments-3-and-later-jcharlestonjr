@@ -1,4 +1,9 @@
 #include "systemcalls.h"
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -16,8 +21,11 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+	if(system(cmd) != -1){
+    		return true;
+	}
+	else{ return false; }
 
-    return true;
 }
 
 /**
@@ -40,14 +48,18 @@ bool do_exec(int count, ...)
     va_start(args, count);
     char * command[count+1];
     int i;
+    int status;
     for(i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
+	if(command[i][0] != '/' && command[i][0] !='-'){
+		return false;
+	}
     }
-    command[count] = NULL;
+  command[count] = NULL; 
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    command[count] =command[count];
 
 /*
  * TODO:
@@ -58,10 +70,24 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+   
+    pid_t pid;
+    pid = fork( );
+    if(pid == -1){
+	    return false;
+    }
+    else if (pid == 0){
+	    execv(command[0],command);
+	    return false;	    
+	    }
+	    
+    
+    if(wait(&status) == -1){
+	    return false;
+    }
 
     va_end(args);
-
-    return true;
+    return true; 
 }
 
 /**
@@ -75,14 +101,15 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     va_start(args, count);
     char * command[count+1];
     int i;
+    int status;
     for(i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
+
     }
-    command[count] = NULL;
+   command[count]=NULL; 
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
 
 
 /*
@@ -92,8 +119,29 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
-
-    va_end(args);
-
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    if (fd<=0){perror("open"); abort();}
+    pid_t pid;
+    switch (pid = fork( )){
+    	case -1:
+            return false;
+    
+    	case  0:
+	    if(dup2(fd,1)<0){abort();}
+	    close(fd);
+	    fflush(stdout);
+            if(execvp(command[0],command) == -1){
+		    close(fd);
+                    return false;
+	    }
+	 default :
+	    close(fd);
+	    
+    }
+    if(wait(&status) == -1){
+            return false;
+    }
+    close(fd);
     return true;
 }
+
